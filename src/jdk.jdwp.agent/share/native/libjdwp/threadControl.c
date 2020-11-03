@@ -34,6 +34,8 @@
 
 #define HANDLING_EVENT(node) ((node)->current_ei != 0)
 
+#define DEBUG_THREADNAME
+
 /*
  * Collection of info for properly handling co-located events.
  * If the ei field is non-zero, then one of the possible
@@ -388,6 +390,22 @@ insertThread(JNIEnv *env, ThreadList *list, jthread thread)
         node->instructionStepMode = JVMTI_DISABLE;
         node->eventBag = eventBag;
         addNode(list, node);
+
+#ifdef DEBUG_THREADNAME
+        {
+            /* Set the thread name */
+            jvmtiThreadInfo info;
+            jvmtiError error;
+
+            memset(&info, 0, sizeof(info));
+            error = JVMTI_FUNC_PTR(gdata->jvmti,GetThreadInfo)
+                    (gdata->jvmti, node->thread, &info);
+            if (info.name != NULL) {
+                strncpy(node->name, info.name, sizeof(node->name) - 1);
+                jvmtiDeallocate(info.name);
+            }
+        }
+#endif
 
         /* Set thread local storage for quick thread -> node access.
          *   Some threads may not be in a state that allows setting of TLS,
@@ -1260,9 +1278,13 @@ commonResumeList(JNIEnv *env)
     /* count number of threads to hard resume */
     (void) enumerateOverThreadList(env, &runningThreads, resumeCountHelper,
                                    &reqCnt);
+    (void) enumerateOverThreadList(env, &runningVThreads, resumeCountHelper,
+                                   &reqCnt);
     if (reqCnt == 0) {
         /* nothing to hard resume so do just the accounting part */
         (void) enumerateOverThreadList(env, &runningThreads, resumeCopyHelper,
+                                       NULL);
+        (void) enumerateOverThreadList(env, &runningVThreads, resumeCopyHelper,
                                        NULL);
         return JVMTI_ERROR_NONE;
     }
@@ -1282,13 +1304,19 @@ commonResumeList(JNIEnv *env)
     reqPtr = reqList;
     (void) enumerateOverThreadList(env, &runningThreads, resumeCopyHelper,
                                    &reqPtr);
+    (void) enumerateOverThreadList(env, &runningVThreads, resumeCopyHelper,
+                                   &reqPtr);
 
     error = JVMTI_FUNC_PTR(gdata->jvmti,ResumeThreadList)
                 (gdata->jvmti, reqCnt, reqList, results);
     for (i = 0; i < reqCnt; i++) {
         ThreadNode *node;
-
-        node = findThread(&runningThreads, reqList[i]);
+        jthread thread = reqList[i];
+        if (isVThread(thread)) {
+            node = findThread(&runningVThreads, thread);
+        } else {
+            node = findThread(&runningThreads, thread);
+        }
         if (node == NULL) {
             EXIT_ERROR(AGENT_ERROR_INVALID_THREAD,"missing entry in running thread table");
         }
@@ -1323,6 +1351,10 @@ commonSuspendList(JNIEnv *env, jint initCount, jthread *initList)
     jint        reqCnt;
     jthread    *reqList;
 
+    if (initCount == 0) {
+      return JVMTI_ERROR_NONE;
+    }
+
     error   = JVMTI_ERROR_NONE;
     reqCnt  = 0;
     reqList = newArray(initCount, sizeof(jthread));
@@ -1335,15 +1367,21 @@ commonSuspendList(JNIEnv *env, jint initCount, jthread *initList)
      */
     for (i = 0; i < initCount; i++) {
         ThreadNode *node;
+        jthread thread = initList[i];
+        jboolean is_vthread = isVThread(thread);
 
-        /*
-         * If the thread is not between its start and end events, we should
-         * still suspend it. To keep track of things, add the thread
-         * to a separate list of threads so that we'll resume it later.
-         */
-        node = findThread(&runningThreads, initList[i]);
-        if (node == NULL) {
-            node = insertThread(env, &otherThreads, initList[i]);
+        if (is_vthread) {
+            node = findThread(&runningVThreads, thread);
+        } else {
+            /*
+             * If the thread is not between its start and end events, we should
+             * still suspend it. To keep track of things, add the thread
+             * to a separate list of threads so that we'll resume it later.
+             */
+            node = findThread(&runningThreads, thread);
+            if (node == NULL) {
+                node = insertThread(env, &otherThreads, thread);
+            }
         }
 
         if (node->isDebugThread) {
@@ -1586,28 +1624,22 @@ threadControl_suspendAll(void)
     WITH_LOCAL_REFS(env, 1) {
 
         jthread *threads;
+        jthread *vthreads;
         jint count;
-
-        /* Tell JVMTI to suspend all virtual threads. */
-        if (suspendAllCount == 0) {
-            error = JVMTI_FUNC_PTR(gdata->jvmti, SuspendAllVirtualThreads)
-                    (gdata->jvmti);
-          if (error != JVMTI_ERROR_NONE) {
-              EXIT_ERROR(error, "cannot suspend all virtual threads");
-          }
-        }
-
-        /* Increment suspend count of each virtual thread that we are tracking. */
-        error = enumerateOverThreadList(env, &runningVThreads, incrementSupendCountHelper, NULL);
-        JDI_ASSERT(error == JVMTI_ERROR_NONE);
+        jint vcount;
 
         threads = allThreads(&count);
         if (threads == NULL) {
             error = AGENT_ERROR_OUT_OF_MEMORY;
             goto err;
         }
+        vthreads = threadControl_allVThreads(&vcount);
         if (canSuspendResumeThreadLists()) {
             error = commonSuspendList(env, count, threads);
+            if (error != JVMTI_ERROR_NONE) {
+                goto err;
+            }
+            error = commonSuspendList(env, vcount, vthreads);
             if (error != JVMTI_ERROR_NONE) {
                 goto err;
             }
@@ -1615,7 +1647,12 @@ threadControl_suspendAll(void)
             int i;
             for (i = 0; i < count; i++) {
                 error = commonSuspend(env, threads[i], JNI_FALSE);
-
+                if (error != JVMTI_ERROR_NONE) {
+                    goto err;
+                }
+            }
+            for (i = 0; i < vcount; i++) {
+                error = commonSuspend(env, vthreads[i], JNI_FALSE);
                 if (error != JVMTI_ERROR_NONE) {
                     goto err;
                 }
@@ -1639,6 +1676,8 @@ threadControl_suspendAll(void)
         }
 
     err: ;
+        jvmtiDeallocate(threads);
+        jvmtiDeallocate(vthreads);
 
     } END_WITH_LOCAL_REFS(env)
 
@@ -1683,19 +1722,6 @@ threadControl_resumeAll(void)
     eventHandler_lock(); /* for proper lock order */
     debugMonitorEnter(threadLock);
 
-    if (suspendAllCount == 1) {
-        /* Tell JVMTI to resume all virtual threads. */
-        error = JVMTI_FUNC_PTR(gdata->jvmti,ResumeAllVirtualThreads)
-                (gdata->jvmti);
-        if (error != JVMTI_ERROR_NONE) {
-            EXIT_ERROR(error, "cannot resume all virtual threads");
-        }
-    }
-
-    /* Decrement suspend count of each virtual thread that we are tracking. */
-    error = enumerateOverThreadList(env, &runningVThreads, decrementSupendCountHelper, NULL);
-    JDI_ASSERT(error == JVMTI_ERROR_NONE);
-
     /*
      * Resume only those threads that the debugger has suspended. All
      * such threads must have a node in one of the thread lists, so there's
@@ -1707,6 +1733,10 @@ threadControl_resumeAll(void)
     } else {
         error = enumerateOverThreadList(env, &runningThreads,
                                         resumeHelper, NULL);
+        if (error == JVMTI_ERROR_NONE) {
+            error = enumerateOverThreadList(env, &runningVThreads,
+                                            resumeHelper, NULL);
+        }
     }
     if ((error == JVMTI_ERROR_NONE) && (otherThreads.first != NULL)) {
         error = enumerateOverThreadList(env, &otherThreads,
