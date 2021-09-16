@@ -166,17 +166,22 @@ public class JDIBase {
             if (event instanceof ThreadStartEvent evt) {
                 if (evt.thread().name().equals(threadName)) {
                     gotDesiredEvent = true;
+                    log2("Got ThreadStartEvent for " + evt.thread().name());
                 } else {
-                    log2("Got ThreadStartEvent for wrong thread: " + event);
+                    log2("Got ThreadStartEvent for " + evt.thread().name() + " instead of " + threadName);
+                    vm.resume();
                 }
             } else if (event instanceof ThreadDeathEvent evt) {
                 if (evt.thread().name().equals(threadName)) {
+                    log2("Got ThreadDeathEvent for " + evt.thread().name());
                     gotDesiredEvent = true;
                 } else {
-                    log2("Got ThreadDeathEvent for wrong thread: " + event);
+                    log2("Got ThreadDeathEvent for " + evt.thread().name() + " instead of " + threadName);
+                    vm.resume();
                 }
             } else {
                 // not ThreadStartEvent nor ThreadDeathEvent
+                log2("getEventSetForThreadStartDeath: got event " + event);
                 gotDesiredEvent = true;
             }
         }

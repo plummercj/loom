@@ -270,6 +270,7 @@ public class request001 extends JDIBase {
             log3("ERROR: VMDisconnectedException : " + e);
             return 2;
         } catch ( Exception e ) {
+            e.printStackTrace();
             log3("ERROR: Exception : " + e);
             return 1;
         }
@@ -335,7 +336,6 @@ public class request001 extends JDIBase {
 
             log2("......setting up ThreadStartRequest");
             ThreadStartRequest tsr = eventRManager.createThreadStartRequest();
-            tsr.addCountFilter(1);
             tsr.setSuspendPolicy(EventRequest.SUSPEND_ALL);
             tsr.putProperty("number", "ThreadStartRequest");
             tsr.enable();
@@ -344,7 +344,6 @@ public class request001 extends JDIBase {
 
             log2("......setting up ThreadDeathRequest");
             ThreadDeathRequest tdr = eventRManager.createThreadDeathRequest();
-            tdr.addCountFilter(1);
             tdr.setSuspendPolicy(EventRequest.SUSPEND_ALL);
             tsr.putProperty("number", "ThreadDeathRequest");
             tdr.enable();
