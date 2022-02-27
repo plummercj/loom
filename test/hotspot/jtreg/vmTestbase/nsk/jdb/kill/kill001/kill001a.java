@@ -30,6 +30,8 @@ import nsk.share.jdb.*;
 import java.io.*;
 import java.util.*;
 
+import nsk.share.jdi.JDIThreadFactory;
+
 /* This is debuggee aplication */
 public class kill001a {
     public static void main(String args[]) {
@@ -39,7 +41,7 @@ public class kill001a {
 
     static void breakHere () {}
 
-    static final String MYTHREAD         = "MyThread";
+    static final String MYTHREAD         = nsk.jdb.kill.kill001.kill001.MYTHREAD;
     static final int numThreads          = 5;   // number of threads. one lock per thread.
     static Object lock                   = new Object();
     static Object waitnotify             = new Object();
@@ -69,7 +71,9 @@ public class kill001a {
         Thread holder [] = new Thread[numThreads];
 
         for (i = 0; i < numThreads ; i++) {
-            holder[i] = new MyThread(MYTHREAD + "-" + i);
+            String name = MYTHREAD + "-" + i;
+            Runnable task = new MyThread(name);
+            holder[i] = JDIThreadFactory.newThread(new MyThread(name), name);
         }
 
         // lock monitor to prevent threads from finishing after they started

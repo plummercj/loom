@@ -50,7 +50,7 @@
  * @run main/othervm
  *      nsk.jdb.kill.kill001.kill001
  *      -arch=${os.family}-${os.simpleArch}
- *      -waittime=5
+ *      -waittime=1 -verbose
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
  *      -jdb=${test.jdk}/bin/jdb
@@ -102,7 +102,7 @@ public class kill001 extends JdbTest {
         jdb.setBreakpointInMethod(LAST_BREAK);
         reply = jdb.receiveReplyFor(JdbCommand.cont);
 
-        threads = jdb.getThreadIds(DEBUGGEE_THREAD);
+        threads = jdb.getThreadIdsByName(MYTHREAD);
 
         if (threads.length != numThreads) {
             log.complain("jdb should report " + numThreads + " instance of " + DEBUGGEE_THREAD);

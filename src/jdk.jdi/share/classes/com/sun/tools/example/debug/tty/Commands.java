@@ -364,6 +364,7 @@ class Commands {
 
     private void printThreadGroup(ThreadGroupReference tg) {
         ThreadIterator threadIter = new ThreadIterator(tg);
+        Iterator<ThreadInfo> vthreadIter = ThreadInfo.vthreads().iterator();
 
         MessageOutput.println("Thread Group:", tg.name());
         int maxIdLength = 0;
@@ -377,15 +378,22 @@ class Commands {
         }
 
         threadIter = new ThreadIterator(tg);
-        while (threadIter.hasNext()) {
-            ThreadReference thr = threadIter.next();
+        while (threadIter.hasNext() || vthreadIter.hasNext()) {
+            ThreadReference thr;
+            if (threadIter.hasNext()) {
+                thr = threadIter.next();
+            } else {
+                thr = vthreadIter.next().getThread();
+            }
+
             if (thr.threadGroup() == null) {
                 continue;
-            }
-            // Note any thread group changes
-            if (!thr.threadGroup().equals(tg)) {
-                tg = thr.threadGroup();
-                MessageOutput.println("Thread Group:", tg.name());
+            } else {
+                // Note any thread group changes
+                if (!thr.threadGroup().equals(tg)) {
+                    tg = thr.threadGroup();
+                    MessageOutput.println("Thread Group:", tg.name());
+                }
             }
 
             /*
@@ -568,15 +576,6 @@ class Commands {
         MessageOutput.println("The load command is no longer supported.");
     }
 
-    private List<ThreadReference> allThreads(ThreadGroupReference group) {
-        List<ThreadReference> list = new ArrayList<ThreadReference>();
-        list.addAll(group.threads());
-        for (ThreadGroupReference child : group.threadGroups()) {
-            list.addAll(allThreads(child));
-        }
-        return list;
-    }
-
     void commandSuspend(StringTokenizer t) {
         if (!t.hasMoreTokens()) {
             Env.vm().suspend();
@@ -714,6 +713,8 @@ class Commands {
                 MessageOutput.println("killed", thread.toString());
             } catch (InvalidTypeException e) {
                 MessageOutput.println("Invalid exception object");
+            } catch (IllegalThreadStateException its) {
+                MessageOutput.println("Illegal thread state"); // fixme: need to add this to TTYResources.java
             }
         } else {
             MessageOutput.println("Expression must evaluate to an object");
