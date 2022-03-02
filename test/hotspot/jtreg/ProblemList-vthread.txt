@@ -502,6 +502,11 @@ vmTestbase/nsk/jdb/repeat/repeat001/repeat001.java
 vmTestbase/nsk/jdi/ExceptionEvent/catchLocation/location002/TestDescription.java 8278470 generic-all
 
 ####
+## Fails because JVMTI GetThreadState produces wrong result for vthreads waiting on a monitor
+
+vmTestbase/nsk/jdi/ObjectReference/waitingThreads/waitingthreads002/TestDescription.java 8282579 generic-all
+
+####
 ## JVMTI SetLocalXXX() is returning OPAQUE_FRAME because vthreads are not except with topmost farme.
 
 vmTestbase/nsk/jdi/StackFrame/_bounds_/bounds002/TestDescription.java
