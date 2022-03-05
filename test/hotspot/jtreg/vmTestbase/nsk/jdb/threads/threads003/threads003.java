@@ -89,6 +89,14 @@ public class threads003 extends JdbTest {
         int count;
         Vector v;
         String[] threads;
+        boolean vthreadMode = "Virtual".equals(System.getProperty("main.wrapper"));
+
+        if (!vthreadMode) {
+            // This test is only meant to be run in vthread mode.
+            log.display("Test not run in vthread mode. Exiting early.");
+            jdb.contToExit(1);
+            return;
+        }
 
         jdb.setBreakpointInMethod(LAST_BREAK);
         jdb.receiveReplyFor(JdbCommand.cont); // This is to get the test going
