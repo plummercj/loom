@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,22 +19,25 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-
-/**
- * @test
- * @summary Functional test for continuations walked with StackWalker's LiveStackFrames
- * @build java.base/java.lang.LiveFrames
- * @modules java.base/jdk.internal.vm
  *
- * @run main/othervm --enable-preview -XX:+UnlockDiagnosticVMOptions -Xint LiveFramesDriver
- * @run main/othervm --enable-preview -XX:+UnlockDiagnosticVMOptions -XX:-TieredCompilation -Xcomp -XX:CompileOnly=jdk/internal/vm/Continuation,java/lang/LiveFrames LiveFramesDriver
- * @run main/othervm --enable-preview -XX:+UnlockDiagnosticVMOptions -XX:+TieredCompilation -XX:TieredStopAtLevel=3 -Xcomp -XX:CompileOnly=jdk/internal/vm/Continuation,java/lang/LiveFrames LiveFramesDriver
  */
 
+#ifndef SHARE_RUNTIME_THREADIDENTIFIERS_HPP
+#define SHARE_RUNTIME_THREADIDENTIFIERS_HPP
 
-public class LiveFramesDriver {
-    public static void main(String[] args) {
-        java.lang.LiveFrames.main(args);
-    }
-}
+#include "memory/allocation.hpp"
+
+/*
+ * Provides unique monotonic identifiers for threads.
+ *
+ * Java use Unsafe to assign the tid field for threadObj / vthread objects on construction.
+ * JFR use next() to assign a unique, non-reusable id to non-java threads.
+ *
+ */
+class ThreadIdentifiers : AllStatic {
+ public:
+  static int64_t unsafe_offset();
+  static int64_t next();
+};
+
+#endif // SHARE_RUNTIME_THREADIDENTIFIERS_HPP

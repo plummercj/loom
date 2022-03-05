@@ -39,7 +39,6 @@ class ContinuationEntry;
 // TODO: remove
 class Continuations : public AllStatic {
 public:
-  static void print_statistics();
   static void init1();
   static void init2();
   static bool enabled(); // TODO: used while virtual threads are in Preview; remove when GA
@@ -73,6 +72,7 @@ public:
 
   static bool is_mounted(JavaThread* thread, oop cont_scope);
 
+  static oop get_continuation_for_sp(JavaThread* thread, intptr_t* const sp);
   static oop  get_continuation_for_frame(JavaThread* thread, const frame& f);
 
   static bool is_frame_in_continuation(ContinuationEntry* cont, const frame& f);

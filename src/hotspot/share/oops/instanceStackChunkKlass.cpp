@@ -47,6 +47,8 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
+#define FIX_DERIVED_POINTERS true
+
 int InstanceStackChunkKlass::_offset_of_stack = 0;
 
 #if INCLUDE_CDS
@@ -65,14 +67,12 @@ MemcpyFnT InstanceStackChunkKlass::memcpy_fn_from_stack_to_chunk = nullptr;
 MemcpyFnT InstanceStackChunkKlass::memcpy_fn_from_chunk_to_stack = nullptr;
 
 void InstanceStackChunkKlass::resolve_memcpy_functions() {
-  if (!StubRoutines::has_word_memcpy() || UseNewCode) { // TODO LOOM
+  if (!StubRoutines::has_word_memcpy()) {
     memcpy_fn_from_stack_to_chunk = (MemcpyFnT)InstanceStackChunkKlass::default_memcpy;
     memcpy_fn_from_chunk_to_stack = (MemcpyFnT)InstanceStackChunkKlass::default_memcpy;
   } else {
-    memcpy_fn_from_stack_to_chunk = UseContinuationStreamingCopy ? (MemcpyFnT)StubRoutines::word_memcpy_up_nt()
-                                                                 : (MemcpyFnT)StubRoutines::word_memcpy_up();
-    memcpy_fn_from_chunk_to_stack = UseContinuationStreamingCopy ? (MemcpyFnT)StubRoutines::word_memcpy_down_nt()
-                                                                 : (MemcpyFnT)StubRoutines::word_memcpy_down();
+    memcpy_fn_from_stack_to_chunk = (MemcpyFnT)StubRoutines::word_memcpy_up();
+    memcpy_fn_from_chunk_to_stack = (MemcpyFnT)StubRoutines::word_memcpy_down();
   }
   assert (memcpy_fn_from_stack_to_chunk != nullptr, "");
   assert (memcpy_fn_from_chunk_to_stack != nullptr, "");
@@ -381,8 +381,6 @@ public:
 
   template <chunk_frames frame_kind, typename RegisterMapT>
   bool do_frame(const StackChunkFrameStream<frame_kind>& f, const RegisterMapT* map) {
-    // log_develop_trace(jvmcont)("stack_chunk_iterate_stack sp: " INTPTR_FORMAT " pc: " INTPTR_FORMAT, f.sp() - _chunk->start_address(), p2i(f.pc()));
-
     // if (Continuation::is_return_barrier_entry(f.pc())) {
     //   assert ((int)(f.sp() - chunk->start_address(chunk)) < chunk->sp(), ""); // only happens when starting from gcSP
     //   return;

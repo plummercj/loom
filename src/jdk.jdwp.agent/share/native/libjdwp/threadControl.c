@@ -126,7 +126,8 @@ static jvmtiError threadControl_removeDebugThread(jthread thread);
  */
 static ThreadList runningThreads;
 static ThreadList otherThreads;
-static ThreadList runningVThreads; /* VThreads we have seen. */
+static ThreadList runningVThreads; /* VThreads we are tracking (not necessarily all vthreads). */
+static jint       numRunningVThreads;
 
 #define MAX_DEBUG_THREADS 10
 static int debugThreadCount;
@@ -332,6 +333,9 @@ removeNode(ThreadList *list, ThreadNode *node)
     node->next = NULL;
     node->prev = NULL;
     node->list = NULL;
+    if (list == &runningVThreads) {
+        numRunningVThreads--;
+    }
 }
 
 /* Add a ThreadNode to a ThreadList */
@@ -349,6 +353,9 @@ addNode(ThreadList *list, ThreadNode *node)
         list->first = node;
     }
     node->list = list;
+    if (list == &runningVThreads) {
+        numRunningVThreads++;
+    }
 }
 
 static ThreadNode *
@@ -505,10 +512,6 @@ static void
 moveNode(ThreadList *source, ThreadList *dest, ThreadNode *node)
 {
     removeNode(source, node);
-    // vthread fixme: we should really fix the caller to pass the right list
-    if (node->is_vthread && dest == &runningThreads) {
-        dest = &runningVThreads;
-    }
     JDI_ASSERT(findThread(dest, node->thread) == NULL);
     addNode(dest, node);
 }
@@ -1098,7 +1101,8 @@ resumeThreadByNode(ThreadNode *node)
                 error = JVMTI_ERROR_NONE;
             }
         }
-        // vthread fixme: If this is a vthread and suspendCount == 0, we should delete the node.
+        // TODO - vthread node cleanup: If this is a vthread and suspendCount == 0,
+        // we should delete the node.
     }
 
     return error;
@@ -1225,7 +1229,7 @@ resumeCopyHelper(JNIEnv *env, ThreadNode *node, void *arg)
      */
     if (node->suspendCount == 1 && (!node->toBeResumed || node->suspendOnStart)) {
         node->suspendCount--;
-        // vthread fixme: If this is a vthread, we should delete the node.
+        // TODO - vthread node: If this is a vthread, we should delete the node.
         return JVMTI_ERROR_NONE;
     }
 
@@ -1376,7 +1380,7 @@ commonResumeList(JNIEnv *env)
         node->toBeResumed = JNI_FALSE;
         node->frameGeneration++; /* Increment on each resume */
 
-        // vthread fixme: If this is a vthread, we should delete the node.
+        // TODO - vthread node: If this is a vthread, we should delete the node.
     }
     deleteArray(results);
     deleteArray(reqList);
@@ -2316,7 +2320,7 @@ threadControl_onEventHandlerEntry(jbyte sessionID, EventInfo *evinfo, jobject cu
      */
     node = findThread(&otherThreads, thread);
     if (node != NULL) {
-        moveNode(&otherThreads, &runningThreads, node);
+        moveNode(&otherThreads, (node->is_vthread ? &runningVThreads : &runningThreads), node);
         /* Now that we know the thread has started, we can set its TLS.*/
         setThreadLocalStorage(thread, (void*)node);
     } else {
@@ -2864,16 +2868,19 @@ threadControl_allVThreads(jint *numVThreads)
 
     env = getEnv();
     debugMonitorEnter(threadLock);
+    *numVThreads = numRunningVThreads;
 
-    /* Count the number of vthreads */
-    /* vthread fixme: we should keep a running total so no counting is needed. */
-    *numVThreads = 0;
-    for (node = runningVThreads.first; node != NULL; node = node->next) {
-        (*numVThreads)++;
+    if (gdata->assertOn) {
+        /* Count the number of vthreads just to make sure we are tracking the count properly. */
+        jint countedVThreads = 0;
+        for (node = runningVThreads.first; node != NULL; node = node->next) {
+            countedVThreads++;
+        }
+        JDI_ASSERT(countedVThreads == numRunningVThreads);
     }
 
     /* Allocate and fill in the vthreads array. */
-    vthreads = jvmtiAllocate(*numVThreads * sizeof(jthread*));
+    vthreads = jvmtiAllocate(numRunningVThreads * sizeof(jthread*));
     if (vthreads != NULL) {
         int i = 0;
         for (node = runningVThreads.first; node != NULL;  node = node->next) {

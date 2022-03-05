@@ -2213,11 +2213,15 @@ JavaThreadStatus java_lang_Thread::get_thread_status(oop java_thread) {
   }
 }
 
+jlong java_lang_Thread::thread_id_raw(oop java_thread) {
+  return Atomic::load(java_thread->field_addr<jlong>(_tid_offset));
+}
+
 jlong java_lang_Thread::thread_id(oop java_thread) {
   // The 16 most significant bits can be used for tracing
   // so these bits are excluded using a mask.
   static const jlong tid_mask = (((jlong)1) << 48) - 1;
-  return java_thread->long_field(_tid_offset) & tid_mask;
+  return thread_id_raw(java_thread) & tid_mask;
 }
 
 ByteSize java_lang_Thread::thread_id_offset() {
@@ -2457,7 +2461,7 @@ int java_lang_VirtualThread::_state_offset;
   macro(_continuation_offset,  k, "cont",  continuation_signature, false); \
   macro(_state_offset,  k, "state",  int_signature, false)
 
-static jboolean vthread_notify_jvmti_events = JNI_FALSE;
+static bool vthread_notify_jvmti_events = JNI_FALSE;
 
 void java_lang_VirtualThread::compute_offsets() {
   InstanceKlass* k = vmClasses::VirtualThread_klass();
@@ -2486,11 +2490,11 @@ oop java_lang_VirtualThread::continuation(oop vthread) {
   return cont;
 }
 
-jshort java_lang_VirtualThread::state(oop vthread) {
+u2 java_lang_VirtualThread::state(oop vthread) {
   return vthread->short_field_acquire(_state_offset);
 }
 
-JavaThreadStatus java_lang_VirtualThread::map_state_to_thread_status(jint state) {
+JavaThreadStatus java_lang_VirtualThread::map_state_to_thread_status(int state) {
   JavaThreadStatus status = JavaThreadStatus::NEW;
   switch (state) {
     case NEW :
@@ -2528,7 +2532,7 @@ bool java_lang_VirtualThread::notify_jvmti_events() {
   return vthread_notify_jvmti_events == JNI_TRUE;
 }
 
-void java_lang_VirtualThread::set_notify_jvmti_events(jboolean enable) {
+void java_lang_VirtualThread::set_notify_jvmti_events(bool enable) {
   vthread_notify_jvmti_events = enable;
 }
 
@@ -5118,22 +5122,18 @@ int jdk_internal_vm_StackChunk::_cont_offset;
   macro(_parent_offset,    k, vmSymbols::parent_name(),    stackchunk_signature, false); \
   macro(_size_offset,      k, vmSymbols::size_name(),      int_signature,        false); \
   macro(_sp_offset,        k, vmSymbols::sp_name(),        int_signature,        false); \
-  macro(_pc_offset,        k, vmSymbols::pc_name(),        long_signature,       false); \
-  macro(_argsize_offset,   k, vmSymbols::argsize_name(),   int_signature,        false); \
-  macro(_flags_offset,     k, "flags",                     byte_signature,       false); \
-  macro(_gcSP_offset,      k, "gcSP",                      int_signature,        false); \
-  macro(_markCycle_offset, k, "markCycle",                 long_signature,       false); \
-  macro(_maxSize_offset,   k, vmSymbols::maxSize_name(),   int_signature,        false); \
-  macro(_cont_offset,      k, "cont",                      continuation_signature, false);
+  macro(_argsize_offset,   k, vmSymbols::argsize_name(),   int_signature,        false);
 
 void jdk_internal_vm_StackChunk::compute_offsets() {
   InstanceKlass* k = vmClasses::StackChunk_klass();
   STACKCHUNK_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+  STACKCHUNK_INJECTED_FIELDS(INJECTED_FIELD_COMPUTE_OFFSET);
 }
 
 #if INCLUDE_CDS
 void jdk_internal_vm_StackChunk::serialize_offsets(SerializeClosure* f) {
   STACKCHUNK_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+  STACKCHUNK_INJECTED_FIELDS(INJECTED_FIELD_SERIALIZE_OFFSET);
 }
 #endif
 

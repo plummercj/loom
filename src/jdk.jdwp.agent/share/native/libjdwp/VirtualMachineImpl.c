@@ -542,7 +542,6 @@ getAllThreads(PacketInputStream *in, PacketOutputStream *out)
         jthread *theVThreads;
 
         theThreads = allThreads(&threadCount);
-        /* vthread fixme: need to remove this vthread support. They should never be returned by allAthreads. */
         if (gdata->enumerateVThreads) {
             theVThreads = threadControl_allVThreads(&vthreadCount);
         } else {
@@ -804,8 +803,7 @@ capabilitiesNew(PacketInputStream *in, PacketOutputStream *out)
     (void)outStream_writeBoolean(out, (jboolean)caps.can_get_constant_pool);
     /* 21 Can force early return */
     (void)outStream_writeBoolean(out, (jboolean)caps.can_force_early_return);
-    /* 22 Supports virtual threads, temporary capability */
-    /* vthread fixme: need to eventually remove this */
+    /* 22 supportsVirtualThreads, temporary capability */
     (void)outStream_writeBoolean(out, (jboolean)JNI_TRUE);
 
     (void)outStream_writeBoolean(out, (jboolean)JNI_FALSE); /* 23 */

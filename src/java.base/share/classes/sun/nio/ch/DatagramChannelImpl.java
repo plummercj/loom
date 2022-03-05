@@ -604,6 +604,7 @@ class DatagramChannelImpl
         assert readLock.isHeldByCurrentThread()
                 && sm != null && remoteAddress == null;
 
+        boolean blocking = isBlocking();
         for (;;) {
             int n;
             ByteBuffer bb = Util.getTemporaryDirectBuffer(dst.remaining());
@@ -625,7 +626,7 @@ class DatagramChannelImpl
                 Util.releaseTemporaryDirectBuffer(bb);
             }
 
-            if (isBlocking() && IOStatus.okayToRetry(n) && isOpen()) {
+            if (blocking && IOStatus.okayToRetry(n) && isOpen()) {
                 park(Net.POLLIN);
             } else {
                 return null;
@@ -640,7 +641,8 @@ class DatagramChannelImpl
     private int tryReceive(byte[] b, int off, int len, boolean connected)
         throws IOException
     {
-        ByteBuffer dst = Util.getTemporaryDirectBuffer(len);
+        // ensure direct buffer is at least size 1
+        ByteBuffer dst = Util.getTemporaryDirectBuffer(Math.max(len, 1));
         assert dst.position() == 0;
         try {
 
@@ -664,9 +666,11 @@ class DatagramChannelImpl
                 }
 
                 // copy datagram into byte array
-                if (n > 0) {
+                if (n > 0 && len > 0) {
                     dst.flip();
                     dst.get(b, off, n);
+                } else {
+                    n = 0;
                 }
             }
             return n;
@@ -711,7 +715,6 @@ class DatagramChannelImpl
             off = p.getOffset();
             len = DatagramPackets.getBufLength(p);
         }
-        Objects.checkFromIndexSize(off, len, ba.length);
 
         int n = -1;
         InetSocketAddress sender = null;

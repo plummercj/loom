@@ -33,22 +33,27 @@
 class Control : public AllStatic {
   static bool _suspend_done;
   static bool _block_done;
+  static bool _second_block_done;
  public:
   static bool suspend_done() { return Atomic::load(&_suspend_done); }
   static bool block_done() { return Atomic::load(&_block_done); }
   static void set_suspend_done() { Atomic::store(&_suspend_done, true); }
   static void set_block_done() { Atomic::store(&_block_done, true); }
+
+  static bool second_block_done() { return Atomic::load(&_second_block_done); }
+  static void set_second_block_done() { Atomic::store(&_second_block_done, true); }
 };
 
 bool Control::_suspend_done = false;
 bool Control::_block_done = false;
+bool Control::_second_block_done = false;
 
 class BlockeeThread : public JavaTestThread {
   public:
   BlockeeThread(Semaphore* post) : JavaTestThread(post) {}
   virtual ~BlockeeThread() {}
   void main_run() {
-    while (!Control::suspend_done()) {
+    while (!Control::second_block_done()) {
       ThreadBlockInVM tbivm(this);
     }
   }
@@ -68,8 +73,8 @@ class BlockingThread : public JavaTestThread {
         tty->print_cr("Block succeeded");
         Control::set_block_done();
         os::naked_short_sleep(10);
-         while (!Control::suspend_done()) {
-           ASSERT_EQ(_target->thread_state(), _thread_blocked) << "should be blocked";
+        while (!Control::suspend_done()) {
+          ASSERT_NE(_target->thread_state(), _thread_in_Java) << "should be blocked";
         }
         _target->continue_resume(this);
         tty->print_cr("Release succeeded");
@@ -88,15 +93,16 @@ class SuspendingThread : public JavaTestThread {
     int test_count = 0;
     // Suspend the target thread and resume it
     while (test_count < 100) {
+      ThreadsListHandle tlh(this);
       ASSERT_LT(print_count++, 100) << "Suspending thread - never suspended";
       if (_target->java_suspend()) {
-        ASSERT_EQ(_target->thread_state(), _thread_blocked) << "should be blocked";
+        ASSERT_NE(_target->thread_state(), _thread_in_Java) << "should be blocked";
         _target->java_resume();
         test_count++;
       }
     }
     // Still blocked until Blocking thread resumes the thread
-    ASSERT_EQ(_target->thread_state(), _thread_blocked) << "should still be blocked";
+    ASSERT_NE(_target->thread_state(), _thread_in_Java) << "should still be blocked";
     Control::set_suspend_done();
   }
 };
@@ -122,6 +128,7 @@ class AnotherBlockingThread : public JavaTestThread {
         done = true;
       }
     }
+    Control::set_second_block_done();
   }
 };
 

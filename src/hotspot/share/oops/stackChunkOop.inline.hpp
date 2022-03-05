@@ -44,17 +44,17 @@ inline int stackChunkOopDesc::stack_size() const         { return jdk_internal_v
 inline int stackChunkOopDesc::sp() const                 { return jdk_internal_vm_StackChunk::sp(as_oop()); }
 inline void stackChunkOopDesc::set_sp(int value)         { jdk_internal_vm_StackChunk::set_sp(this, value); }
 inline address stackChunkOopDesc::pc() const             { return (address)jdk_internal_vm_StackChunk::pc(as_oop()); }
-inline void stackChunkOopDesc::set_pc(address value)     { jdk_internal_vm_StackChunk::set_pc(this, (jlong)value); }
+inline void stackChunkOopDesc::set_pc(address value)     { jdk_internal_vm_StackChunk::set_pc(this, (intptr_t)value); }
 inline int stackChunkOopDesc::argsize() const            { return jdk_internal_vm_StackChunk::argsize(as_oop()); }
 inline void stackChunkOopDesc::set_argsize(int value)    { jdk_internal_vm_StackChunk::set_argsize(as_oop(), value); }
-inline uint8_t stackChunkOopDesc::flags() const          { return (uint8_t)jdk_internal_vm_StackChunk::flags(as_oop()); }
-inline void stackChunkOopDesc::set_flags(uint8_t value)  { jdk_internal_vm_StackChunk::set_flags(this, (jbyte)value); }
-inline int stackChunkOopDesc::max_size() const           { return (int)jdk_internal_vm_StackChunk::maxSize(as_oop()); }
+inline uint8_t stackChunkOopDesc::flags() const          { return jdk_internal_vm_StackChunk::flags(as_oop()); }
+inline void stackChunkOopDesc::set_flags(uint8_t value)  { jdk_internal_vm_StackChunk::set_flags(this, value); }
+inline int stackChunkOopDesc::max_size() const           { return jdk_internal_vm_StackChunk::maxSize(as_oop()); }
 inline void stackChunkOopDesc::set_max_size(int value)   { jdk_internal_vm_StackChunk::set_maxSize(this, (jint)value); }
 inline int stackChunkOopDesc::gc_sp() const              { return jdk_internal_vm_StackChunk::gc_sp(as_oop()); }
 inline void stackChunkOopDesc::set_gc_sp(int value)      { jdk_internal_vm_StackChunk::set_gc_sp(this, value); }
-inline uint64_t stackChunkOopDesc::mark_cycle() const         { return (uint64_t)jdk_internal_vm_StackChunk::mark_cycle(as_oop()); }
-inline void stackChunkOopDesc::set_mark_cycle(uint64_t value) { jdk_internal_vm_StackChunk::set_mark_cycle(this, (jlong)value); }
+inline uint64_t stackChunkOopDesc::mark_cycle() const         { return jdk_internal_vm_StackChunk::mark_cycle(as_oop()); }
+inline void stackChunkOopDesc::set_mark_cycle(uint64_t value) { jdk_internal_vm_StackChunk::set_mark_cycle(this, value); }
 
 inline void stackChunkOopDesc::set_cont(oop value) { jdk_internal_vm_StackChunk::set_cont(this, value); }
 template<typename P> inline void stackChunkOopDesc::set_cont_raw(oop value)   { jdk_internal_vm_StackChunk::set_cont_raw<P>(this, value); }
@@ -126,27 +126,9 @@ inline bool stackChunkOopDesc::requires_barriers() const {
   return Universe::heap()->requires_barriers(as_oop());
 }
 
-template <typename OopT>
-inline static bool is_oop_fixed(oop obj, int offset) {
-  OopT value = *obj->field_addr<OopT>(offset);
-  intptr_t before = *(intptr_t*)&value;
-  intptr_t after  = cast_from_oop<intptr_t>(NativeAccess<>::oop_load(&value));
-  // tty->print_cr(">>> fixed %d: " INTPTR_FORMAT " -> " INTPTR_FORMAT, before == after, before, after);
-  return before == after;
-}
-
 template <typename OopT, gc_type gc>
 inline bool stackChunkOopDesc::should_fix() const {
-  if (UNLIKELY(is_gc_mode())) return true;
-
-  if (gc == gc_type::CONCURRENT) {
-    // the last oop traversed in this object -- see InstanceStackChunkKlass::oop_oop_iterate
-    if (UNLIKELY(!is_oop_fixed<OopT>(as_oop(), jdk_internal_vm_StackChunk::cont_offset())))
-      return true;
-  }
-
-  OrderAccess::loadload(); // we must see all writes prior to last oop/gc_mode
-  return false;
+  return InstanceStackChunkKlass::should_fix<OopT, gc>(const_cast<stackChunkOopDesc*>(this));
 }
 
 inline bool stackChunkOopDesc::has_mixed_frames() const         { return is_flag(FLAG_HAS_INTERPRETED_FRAMES); }

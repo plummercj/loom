@@ -41,20 +41,38 @@ import java.util.List;
 /**
  * Thread dump support.
  *
- * This class defines methods to dump threads to an output stream or file in
- * plain text or JSON format. Virtual threads are located if they are created in
- * a structured way with a ThreadFlock.
+ * This class defines methods to dump threads to an output stream or file in plain
+ * text or JSON format.
  */
 public class ThreadDumper {
     private ThreadDumper() { }
+
+    /**
+     * Generate a thread dump in plain text format to the given file, UTF-8 encoded.
+     *
+     * This method is invoked by the VM for the JavaThread.dump diagnostic command.
+     */
+    public static byte[] dumpThreads(String file, boolean okayToOverwrite) {
+        return dumpThreads(file, okayToOverwrite, false);
+    }
+
+    /**
+     * Generate a thread dump in JSON format to the given file, UTF-8 encoded.
+     *
+     * This method is invoked by the VM for the JavaThread.dump diagnostic command.
+     */
+    public static byte[] dumpThreadsToJson(String file, boolean okayToOverwrite) {
+        return dumpThreads(file, okayToOverwrite, true);
+    }
 
     /**
      * Generate a thread dump in plain text or JSON format to the given file, UTF-8 encoded.
      */
     private static byte[] dumpThreads(String file, boolean okayToOverwrite, boolean json) {
         Path path = Path.of(file).toAbsolutePath();
-        OpenOption[] options = (okayToOverwrite) ?
-                new OpenOption[0] : new OpenOption[] { StandardOpenOption.CREATE_NEW };
+        OpenOption[] options = (okayToOverwrite)
+                ? new OpenOption[0]
+                : new OpenOption[] { StandardOpenOption.CREATE_NEW };
         String reply;
         try (OutputStream out = Files.newOutputStream(path, options);
              PrintStream ps = new PrintStream(out, true, StandardCharsets.UTF_8)) {
@@ -73,24 +91,6 @@ public class ThreadDumper {
     }
 
     /**
-     * Generate a thread dump in plain text format to the given file, UTF-8 encoded.
-     *
-     * This method is invoked by the VN to implement the JavaThread.dump command.
-     */
-    public static byte[] dumpThreads(String file, boolean okayToOverwrite) {
-        return dumpThreads(file, okayToOverwrite, false);
-    }
-
-    /**
-     * Generate a thread dump in JSON format to the given file, UTF-8 encoded.
-     *
-     * This method is invoked by the VN to implement the JavaThread.dump command.
-     */
-    public static byte[] dumpThreadsToJson(String file, boolean okayToOverwrite) {
-        return dumpThreads(file, okayToOverwrite, true);
-    }
-
-    /**
      * Generate a thread dump in plain text format to the given output stream,
      * UTF-8 encoded.
      *
@@ -98,7 +98,9 @@ public class ThreadDumper {
      */
     public static void dumpThreads(OutputStream out) {
         PrintStream ps = new PrintStream(out, true, StandardCharsets.UTF_8);
-        ps.format("%s %s%n",  Instant.now(), Runtime.version());
+        ps.println(processId());
+        ps.println(Instant.now());
+        ps.println(Runtime.version());
         ps.println();
         dumpThreads(ThreadContainers.root(), ps);
         ps.flush();
@@ -138,6 +140,7 @@ public class ThreadDumper {
 
         String now = Instant.now().toString();
         String runtimeVersion = Runtime.version().toString();
+        out.format("    \"processId\": %d,%n", processId());
         out.format("    \"time\": \"%s\",%n", escape(now));
         out.format("    \"runtimeVersion\": \"%s\",%n", escape(runtimeVersion));
 
@@ -149,7 +152,6 @@ public class ThreadDumper {
             boolean more = iterator.hasNext();
             dumpThreadsToJson(container, out, more);
         }
-
         out.println("    ]");   // end of threadContainers
 
         out.println("  }");   // end threadDump
@@ -268,5 +270,16 @@ public class ThreadDumper {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * Returns the process ID or -1 if not supported.
+     */
+    private static long processId() {
+        try {
+            return ProcessHandle.current().pid();
+        } catch (UnsupportedOperationException e) {
+            return -1L;
+        }
     }
 }
