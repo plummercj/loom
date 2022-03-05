@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -809,8 +809,6 @@ public class Jdb extends LocalProcess implements Finalizable {
         Vector<String> v = new Vector<String>();
         String[] reply = receiveReplyFor(JdbCommand.threads);
         Paragrep grep = new Paragrep(reply);
-        System.out.println("threadName: "  + threadName);
-        System.out.println("REPLY: "  + reply);
 
         String[] found = grep.findStrings(threadName);
         for (int i = 0; i < found.length; i++) {
@@ -831,27 +829,27 @@ public class Jdb extends LocalProcess implements Finalizable {
     }
 
     /**
-     * Returns as string array all id's for a given class type of <i>threadName</i>.
+     * Returns as string array all id's for a given class type of <i>threadType</i>.
      */
-    public String[] getThreadIds(String threadName) {
+    public String[] getThreadIds(String threadType) {
 
-        if (!threadName.startsWith("(")) {
-            threadName = "(" + threadName;
+        if (!threadType.startsWith("(")) {
+            threadType = "(" + threadType;
         }
-        if (!threadName.endsWith(")")) {
-            threadName = threadName + ")";
+        if (!threadType.endsWith(")")) {
+            threadType = threadType + ")";
         }
 
         Vector<String> v = new Vector<String>();
         String[] reply = receiveReplyFor(JdbCommand.threads);
         Paragrep grep = new Paragrep(reply);
 
-        String[] found = grep.findStrings(threadName);
+        String[] found = grep.findStrings(threadType);
         for (int i = 0; i < found.length; i++) {
             String string = found[i];
-            int j = string.indexOf(threadName);
+            int j = string.indexOf(threadType);
             if (j >= 0) {
-               j += threadName.length();
+               j += threadType.length();
                String threadId = string.substring(j, string.indexOf(" ", j));
                v.add(threadId);
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -364,9 +364,10 @@ class Commands {
 
     private void printThreadGroup(ThreadGroupReference tg) {
         ThreadIterator threadIter = new ThreadIterator(tg);
-        Iterator<ThreadInfo> vthreadIter = ThreadInfo.vthreads().iterator();
 
         MessageOutput.println("Thread Group:", tg.name());
+
+        // Iterate over all the threads to figure out the max field widths needed
         int maxIdLength = 0;
         int maxNameLength = 0;
         while (threadIter.hasNext()) {
@@ -377,23 +378,17 @@ class Commands {
                                      thr.name().length());
         }
 
+        // Iterate over all threads in the threadgroup.
         threadIter = new ThreadIterator(tg);
-        while (threadIter.hasNext() || vthreadIter.hasNext()) {
-            ThreadReference thr;
-            if (threadIter.hasNext()) {
-                thr = threadIter.next();
-            } else {
-                thr = vthreadIter.next().getThread();
-            }
-
+        while (threadIter.hasNext()) {
+            ThreadReference thr = threadIter.next();
             if (thr.threadGroup() == null) {
                 continue;
-            } else {
-                // Note any thread group changes
-                if (!thr.threadGroup().equals(tg)) {
-                    tg = thr.threadGroup();
-                    MessageOutput.println("Thread Group:", tg.name());
-                }
+            }
+            // Note any thread group changes
+            if (!thr.threadGroup().equals(tg)) {
+                tg = thr.threadGroup();
+                MessageOutput.println("Thread Group:", tg.name());
             }
 
             /*
@@ -471,7 +466,7 @@ class Commands {
 
     void commandThreads(StringTokenizer t) {
         if (!t.hasMoreTokens()) {
-            printThreadGroup(ThreadInfo.group());
+            printThreadGroup(ThreadInfo.group()); // print threads in the current threadgroup
             return;
         }
         String name = t.nextToken();
@@ -479,7 +474,7 @@ class Commands {
         if (tg == null) {
             MessageOutput.println("is not a valid threadgroup name", name);
         } else {
-            printThreadGroup(tg);
+            printThreadGroup(tg); // print threads in specified group (and its subgroups)
         }
     }
 
@@ -523,8 +518,8 @@ class Commands {
 
     void commandRun(StringTokenizer t) {
         /*
-         * The 'run' command makes little sense in a
-         * that doesn't support restarts or multiple VMs. However,
+         * The 'run' command makes little sense in
+         * that it doesn't support restarts or multiple VMs. However,
          * this is an attempt to emulate the behavior of the old
          * JDB as much as possible. For new users and implementations
          * it is much more straightforward to launch immedidately
@@ -714,7 +709,7 @@ class Commands {
             } catch (InvalidTypeException e) {
                 MessageOutput.println("Invalid exception object");
             } catch (IllegalThreadStateException its) {
-                MessageOutput.println("Illegal thread state"); // fixme: need to add this to TTYResources.java
+                MessageOutput.println("Illegal thread state");
             }
         } else {
             MessageOutput.println("Expression must evaluate to an object");

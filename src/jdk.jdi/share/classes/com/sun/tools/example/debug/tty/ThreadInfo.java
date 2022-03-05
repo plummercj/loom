@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,8 @@ class ThreadInfo {
         }
     }
 
-    static void addThread(ThreadReference thread) {
+    // Returns true if thread is newly added. Returns false if previously added.
+    static boolean addThread(ThreadReference thread) {
         synchronized (threads) {
             initThreads();
             ThreadInfo ti = new ThreadInfo(thread);
@@ -84,7 +85,9 @@ class ThreadInfo {
                 } else {
                     threads.add(ti);
                 }
+                return true;
             }
+            return false;
         }
     }
 
@@ -120,13 +123,13 @@ class ThreadInfo {
             initThreads();
             // Make a copy to allow iteration without synchronization
             List<ThreadInfo> list = new ArrayList<ThreadInfo>(threads);
-            list.addAll(vthreads);
+            list.addAll(vthreads); // also include the vthreads list
             return list;
         }
     }
 
     static List<ThreadInfo> vthreads() {
-        synchronized(vthreads) {
+        synchronized(threads) {
             initThreads();
             // Make a copy to allow iteration without synchronization
             return new ArrayList<ThreadInfo>(vthreads);
