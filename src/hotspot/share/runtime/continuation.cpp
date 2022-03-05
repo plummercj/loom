@@ -746,7 +746,7 @@ static ContinuationEntry* get_continuation_entry_for_frame(JavaThread* thread, i
   return cont;
 }
 
-static oop get_continuation_for_sp(JavaThread* thread, intptr_t* const sp) {
+oop Continuation::get_continuation_for_sp(JavaThread* thread, intptr_t* const sp) {
   assert (thread != nullptr, "");
   ContinuationEntry* cont = get_continuation_entry_for_frame(thread, sp);
   return cont != nullptr ? cont->continuation() : (oop)nullptr;
@@ -2806,11 +2806,6 @@ public:
     ContinuationHelper::push_pd(f);
 
     assert(Frame::assert_frame_laid_out(f), "");
-  }
-
-  static inline void derelativize(intptr_t* const fp, int offset) {
-    intptr_t* addr = fp + offset;
-    *addr = (intptr_t)(fp + *addr);
   }
 
   static void JVMTI_continue_cleanup(JavaThread* thread) {

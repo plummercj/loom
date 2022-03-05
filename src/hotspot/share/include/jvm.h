@@ -168,6 +168,9 @@ JVM_IsSupportedJNIVersion(jint version);
 JNIEXPORT jobjectArray JNICALL
 JVM_GetVmArguments(JNIEnv *env);
 
+JNIEXPORT jboolean JNICALL
+JVM_IsPreviewEnabled(JNIEnv* env);
+
 JNIEXPORT void JNICALL
 JVM_InitializeFromArchive(JNIEnv* env, jclass cls);
 
@@ -317,6 +320,9 @@ JVM_ScopeLocalCache(JNIEnv *env, jclass threadClass);
 
 JNIEXPORT void JNICALL
 JVM_SetScopeLocalCache(JNIEnv *env, jclass threadClass, jobject theCache);
+
+JNIEXPORT jlong JNICALL
+JVM_GetNextThreadIdOffset(JNIEnv *env, jclass threadClass);
 
 /*
  * jdk.internal.vm.Continuation

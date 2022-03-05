@@ -39,6 +39,7 @@ import java.util.concurrent.locks.LockSupport;
 
 import jdk.internal.event.ThreadSleepEvent;
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.StructureViolationExceptions;
 import jdk.internal.misc.TerminatingThreadLocal;
 import jdk.internal.misc.Unsafe;
@@ -201,7 +202,7 @@ public class Thread implements Runnable {
     // thread name
     private volatile String name;
 
-    // thread id
+    // thread id.
     private final long tid;
 
     // context ClassLoader
@@ -270,15 +271,24 @@ public class Thread implements Runnable {
      * identifier for the primordial thread.
      */
     private static class ThreadIdentifiers {
-        private static final Unsafe U = Unsafe.getUnsafe();
-        private static final long NEXT_TID_OFFSET =
-            U.objectFieldOffset(ThreadIdentifiers.class, "nextTid");
+        private static final Unsafe U;
+        private static final long NEXT_TID_OFFSET;
         private static final long TID_MASK = (1L << 48) - 1;
-        private static volatile long nextTid = 2;
+
+        static {
+            U = Unsafe.getUnsafe();
+            NEXT_TID_OFFSET = getNextThreadIdOffset();
+        }
+
         static long next() {
-            return U.getAndAddLong(ThreadIdentifiers.class, NEXT_TID_OFFSET, 1);
+            return U.getAndAddLong(null, NEXT_TID_OFFSET, 1);
         }
     }
+
+    /*
+     * The address of the next thread id. For Unsafe use in ThreadIdentifiers.
+     */
+    private static native long getNextThreadIdOffset();
 
     /*
      * Lock object for thread interrupt.
@@ -760,6 +770,7 @@ public class Thread implements Runnable {
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VIRTUAL_THREADS)
     public static Builder.OfVirtual ofVirtual() {
+        PreviewFeatures.ensureEnabled();
         return new ThreadBuilders.VirtualThreadBuilder();
     }
 
@@ -1384,6 +1395,7 @@ public class Thread implements Runnable {
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VIRTUAL_THREADS)
     public static Thread startVirtualThread(Runnable task) {
+        PreviewFeatures.ensureEnabled();
         var thread = new VirtualThread(null, null, 0, task);
         thread.start();
         return thread;

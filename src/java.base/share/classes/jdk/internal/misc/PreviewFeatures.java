@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,32 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.internal.misc;
 
-package jdk.internal.vm;
+/**
+ * Defines static methods to test if preview features are enabled at run-time.
+ */
+public class PreviewFeatures {
+    private static final boolean ENABLED = VM.isPreviewEnabled();
 
-public final class StackChunk {
-    public static void init() {}
+    private PreviewFeatures() {
+    }
 
-    private StackChunk parent;
-    private int size; // in words
-    private int sp; // in words
-    private int argsize; // bottom stack-passed arguments, in words
+    /**
+     * {@return true if preview features are enabled, otherwise false}
+     */
+    public static boolean isEnabled() {
+        return true; // FIXME: return true until test environment ready
+    }
 
-    // The stack itself is appended here by the VM
-
-    public StackChunk parent() { return parent; }
-    public boolean isEmpty()   { return sp >= (size - argsize); }
+    /**
+     * Ensures that preview features are enabled.
+     * @throws UnsupportedOperationException if preview features are not enabled
+     */
+    public static void ensureEnabled() {
+        if (!isEnabled()) {
+            throw new UnsupportedOperationException(
+                "Preview Features not enabled, need to run with --enable-preview");
+        }
+    }
 }

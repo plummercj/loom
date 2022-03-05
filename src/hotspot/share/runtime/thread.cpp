@@ -615,7 +615,9 @@ void Thread::print_on(outputStream* st, bool print_extended_info) const {
     }
 
     st->print("tid=" INTPTR_FORMAT " ", p2i(this));
-    osthread()->print_on(st);
+    if (!is_Java_thread() || !JavaThread::cast(this)->is_vthread_mounted()) {
+      osthread()->print_on(st);
+    }
   }
   ThreadsSMRSupport::print_info_on(this, st);
   st->print(" ");
@@ -2146,8 +2148,14 @@ const char* _get_thread_state_name(JavaThreadState _thread_state) {
 }
 
 void JavaThread::print_thread_state_on(outputStream *st) const {
+  if (is_vthread_mounted()) {
+    oop vt = vthread();
+    assert (vt != NULL, "");
+    st->print_cr("   Carrying virtual thread #" INT64_FORMAT, (int64_t)java_lang_Thread::thread_id(vt));
+  }
   st->print_cr("   JavaThread state: %s", _get_thread_state_name(_thread_state));
 };
+
 const char* JavaThread::thread_state_name() const {
   return _get_thread_state_name(_thread_state);
 }
@@ -2167,7 +2175,13 @@ void JavaThread::print_on(outputStream *st, bool print_extended_info) const {
   // print guess for valid stack memory region (assume 4K pages); helps lock debugging
   st->print_cr("[" INTPTR_FORMAT "]", (intptr_t)last_Java_sp() & ~right_n_bits(12));
   if (thread_oop != NULL) {
-    st->print_cr("   java.lang.Thread.State: %s", java_lang_Thread::thread_status_name(thread_oop));
+    if (is_vthread_mounted()) {
+      oop vt = vthread();
+      assert (vt != NULL, "");
+      st->print_cr("   Carrying virtual thread #" INT64_FORMAT, (int64_t)java_lang_Thread::thread_id(vt));
+    } else {
+      st->print_cr("   java.lang.Thread.State: %s", java_lang_Thread::thread_status_name(thread_oop));
+    }
   }
 #ifndef PRODUCT
   _safepoint_state->print_on(st);
@@ -2346,7 +2360,9 @@ void JavaThread::print_stack_on(outputStream* st) {
   HandleMark hm(current_thread);
 
   RegisterMap reg_map(this, true, true);
-  vframe* start_vf = last_java_vframe(&reg_map);
+  vframe* start_vf = is_vthread_mounted()
+      ? vthread_carrier_last_java_vframe(&reg_map)
+      : last_java_vframe(&reg_map);
   int count = 0;
   for (vframe* f = start_vf; f != NULL; f = f->sender()) {
     if (f->is_java_frame()) {
