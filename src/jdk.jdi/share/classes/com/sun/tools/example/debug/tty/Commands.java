@@ -571,6 +571,16 @@ class Commands {
         MessageOutput.println("The load command is no longer supported.");
     }
 
+    /* Note: no longer used, but kept around as sample code. */
+    private List<ThreadReference> allThreads(ThreadGroupReference group) {
+        List<ThreadReference> list = new ArrayList<ThreadReference>();
+        list.addAll(group.threads());
+        for (ThreadGroupReference child : group.threadGroups()) {
+            list.addAll(allThreads(child));
+        }
+        return list;
+    }
+
     void commandSuspend(StringTokenizer t) {
         if (!t.hasMoreTokens()) {
             Env.vm().suspend();
