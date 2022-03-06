@@ -64,7 +64,7 @@
   template(java_lang_Thread,                          "java/lang/Thread")                         \
   template(java_lang_Thread_FieldHolder,              "java/lang/Thread$FieldHolder")             \
   template(java_lang_Thread_VirtualThreads,           "java/lang/Thread$VirtualThreads")          \
-  template(java_lang_Thread_ClassLoaders,             "java/lang/Thread$ClassLoaders")            \
+  template(java_lang_Thread_ContextClassLoaders,      "java/lang/Thread$ContextClassLoaders")     \
   template(java_lang_ThreadGroup,                     "java/lang/ThreadGroup")                    \
   template(java_lang_VirtualThread,                   "java/lang/VirtualThread")                  \
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
@@ -752,6 +752,7 @@
   template(dumpSharedArchive_signature,                     "(ZLjava/lang/String;)Ljava/lang/String;")            \
   template(generateLambdaFormHolderClasses,                 "generateLambdaFormHolderClasses")                    \
   template(generateLambdaFormHolderClasses_signature,       "([Ljava/lang/String;)[Ljava/lang/Object;")           \
+  template(java_lang_Enum,                                  "java/lang/Enum")                                     \
   template(java_lang_invoke_Invokers_Holder,                "java/lang/invoke/Invokers$Holder")                   \
   template(java_lang_invoke_DirectMethodHandle_Holder,      "java/lang/invoke/DirectMethodHandle$Holder")         \
   template(java_lang_invoke_LambdaForm_Holder,              "java/lang/invoke/LambdaForm$Holder")                 \
