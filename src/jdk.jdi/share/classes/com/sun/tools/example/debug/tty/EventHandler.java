@@ -110,7 +110,8 @@ public class EventHandler implements Runnable {
             eventThread = ((LocatableEvent)event).thread();
         }
         if (eventThread != null) {
-            // This might be a vthread we haven't seen before, so add it to our list.
+            // This is a vthread we haven't seen before, so add it to our list.
+            assert eventThread.isVirtual();
             boolean added = ThreadInfo.addThread(eventThread);
             // If we added it, we need to make sure it eventually gets removed. Usually
             // this happens when the ThreadDeathEvent comes in, but if !trackAllVthreads,
@@ -120,10 +121,6 @@ public class EventHandler implements Runnable {
                 EventRequestManager erm = Env.vm().eventRequestManager();
                 ThreadDeathRequest tdr = erm.createThreadDeathRequest();
                 tdr.addThreadFilter(eventThread);
-                // When the ThreadDeathEvent arrives, we need remove this ThreadDeathRequest.
-                // We set the thread as its property so it can be differentiated from the
-                // "global" ThreadDeathRequest that is always in place.
-                tdr.putProperty(eventThread, eventThread);
                 tdr.enable();
                 //System.out.println("TDR added: " + thread);
             }
@@ -301,7 +298,7 @@ public class EventHandler implements Runnable {
         ThreadReference thread = tde.thread();
         ThreadInfo.removeThread(thread);
 
-        if (event.request().getProperty(thread) == thread) {
+        if (!trackAllVthreads && thread.isVirtual()) {
             // Remove the ThreadDeathRequest used for this event since it was created
             // just to remove this one vthread.
             EventRequestManager erm = Env.vm().eventRequestManager();
